@@ -1,0 +1,25 @@
+[Unit]
+Description=openvswitch
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=0
+EnvironmentFile=
+EnvironmentFile=/etc/environment
+ExecStartPre=-/sbin/modprobe openvswitch
+ExecStartPre=/usr/bin/docker pull socketplane/openvswitch:latest
+ExecStartPre=-/usr/bin/docker kill base_core_openvswitch_latest
+ExecStartPre=-/usr/bin/docker rm base_core_openvswitch_latest
+ExecStartPre=-/bin/mkdir -p /run/ovs
+ExecStartPre=-/bin/rm /run/ovs/ovs.cid
+ExecStartPre=-/bin/bash -c '/bin/echo "echo \"ovs docker container not running\" && exit 1" > /opt/bin/ovs && /bin/chmod 755 /opt/bin/ovs'
+ExecStart=/usr/bin/docker run -d --name base_core_openvswitch_latest --cap-add NET_ADMIN --cidfile="/run/ovs/ovs.cid" --net=host -v /var/run/ovs/ctl/:/var/run/ socketplane/openvswitch:latest
+ExecStart=/bin/bash -c "/bin/echo \"docker exec $(cat /run/ovs/ovs.cid) \$@\" > /opt/bin/ovs && /bin/chmod 755 /opt/bin/ovs"
+ExecStop=-/usr/bin/docker stop base_core_openvswitch_latest
+ExecStopPost=-/bin/bash -c '/bin/echo "echo \"ovs docker container not running\" && exit 1" > /opt/bin/ovs && /bin/chmod 755 /opt/bin/ovs'
+
+[Install]
+WantedBy=multi-user.target
